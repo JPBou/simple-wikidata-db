@@ -14,6 +14,7 @@ import multiprocessing
 from multiprocessing import Queue, Process
 from pathlib import Path
 import time
+from tqdm import tqdm
 
 from simple_wikidata_db.preprocess_utils.reader_process import count_lines, read_data
 from simple_wikidata_db.preprocess_utils.worker_process import process_data
@@ -74,7 +75,7 @@ def main():
     )
     write_process.start()
 
-    work_processes = []
+    pbar = tqdm(total=total_num_lines)  # Initialize tqdm progress bar
     for _ in range(max(1, args.processes-2)):
         work_process = Process(
             target=process_data,
@@ -83,6 +84,12 @@ def main():
         work_process.daemon = True
         work_process.start()
         work_processes.append(work_process)
+
+    while num_lines_read.value < total_num_lines:
+        pbar.update(num_lines_read.value - pbar.n)  # Update the progress bar
+        time.sleep(0.1)
+
+    pbar.close()  # Close the progress bar
 
     read_process.join()
     print(f"Done! Read {num_lines_read.value} lines")
